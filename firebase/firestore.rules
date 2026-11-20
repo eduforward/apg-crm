@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function email() { return request.auth != null && request.auth.token.email != null ? request.auth.token.email.lower() : ''; }
+    function isRoot() { return email() == 'ceo@eduforward.kr'; }
+    function hasUser() { return request.auth != null && exists(/databases/$(database)/documents/users/$(email())); }
+    function udata() { return get(/databases/$(database)/documents/users/$(email())).data; }
+    // 역할: super(최고관리자) > admin(관리자) > member(구성원). users 문서가 없으면 접근 불가
+    function role() { return isRoot() ? 'super' : (hasUser() ? udata().get('role', 'member') : ''); }
+    function isSuper() { return role() == 'super'; }
+    function isAdmin() { return role() in ['admin', 'super']; }
+    function isUser() { return role() != ''; }
+    function privileged(r) { return r in ['admin', 'super']; }
+
+    // 계정(문서 ID = 소문자 이메일): 관리자는 구성원만 추가·수정·제거, 관리자 권한 부여는 최고관리자만
+    match /users/{e} {
+      allow read: if isUser();
+      allow create: if isSuper() || (isAdmin() && !privileged(request.resource.data.get('role', '')));
+      allow update: if isSuper() || (isAdmin() && !privileged(request.resource.data.get('role', '')) && !privileged(resource.data.get('role', '')));
+      allow delete: if isSuper() || (isAdmin() && !privileged(resource.data.get('role', '')));
+    }
+    // 홈페이지 상담신청(leads): 생성은 Cloud Function(Admin SDK)만. 구성원은 열람·진행 상태 변경, 삭제는 관리자
+    match /leads/{id} {
+      allow read: if isUser();
+      allow create: if false;
+      allow update: if isUser() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'memo', 'assignedTo', 'assignedName', 'statusAt', 'statusBy']);
+      allow delete: if isAdmin();
+    }
+    // 비밀 설정(슬랙 웹훅 등): 관리자만
+    match /secrets/{id} { allow read, write: if isAdmin(); }
+  }
+}
+// v1 — 2026-11-20: users · leads · secrets
