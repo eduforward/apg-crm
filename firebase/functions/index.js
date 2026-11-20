@@ -8,7 +8,7 @@ const db = admin.firestore();
 
 const ORIGINS = ['https://apgmarketing.kr', 'https://www.apgmarketing.kr'];
 const ROLES = ['원장 / 대표원장', '개원 준비중', '병원 내 담당자'];
-const CRM_URL = ''; // CRM 배포 주소가 정해지면 입력 (슬랙 알림의 바로가기 링크)
+const CRM_URL = 'https://eduforward.github.io/apg-crm/'; // 슬랙 알림의 바로가기 링크
 const RATE = new Map(); // phoneDigits → [timestamps] (인스턴스 메모리, 최소 남용 방지)
 
 // 슬랙 알림: Firestore secrets/slack.webhookUrl 이 있을 때만 전송
