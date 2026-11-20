@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#06bfb9">
+<title>접수 고객 | 아프지마케팅 CRM</title>
+<link rel="shortcut icon" href="assets/favicon.ico">
+<link rel="icon" type="image/png" sizes="196x196" href="assets/favicon-196.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+  :root {
+    --teal: #06bfb9;
+    --teal-deep: #049b96;
+    --teal-bright: #14c7c1;
+    --mint: #3ef0c8;
+    --forest: #0a3533;
+    --forest-2: #0d4a47;
+    --ink: #22312f;
+    --ink-2: #3c4c4a;
+    --muted: #5c6b6a;
+    --faint: #7b8a88;
+    --line: #e2ecea;
+    --bg: #f5faf9;
+    --tint: #e6f7f6;
+    --coral: #ff5757;
+    --coral-tint: #ffe3e0;
+    --amber: #ffd66b;
+    --white: #fff;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 14.5px;
+    line-height: 1.5;
+    letter-spacing: -.01em;
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input, select { font: inherit; color: inherit; letter-spacing: inherit; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+
+  /* 헤더 */
+  .top { background: var(--white); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 20; }
+  .top .wrap { display: flex; align-items: center; gap: 14px; height: 64px; }
+  .top img { height: 24px; width: auto; display: block; }
+  .top .tag {
+    font-size: 11.5px; font-weight: 800; letter-spacing: .08em; color: var(--teal-deep);
+    background: var(--tint); border-radius: 999px; padding: 4px 10px;
+  }
+  .top nav { margin-left: auto; display: flex; gap: 6px; }
+  .top nav a {
+    text-decoration: none; font-weight: 700; font-size: 14px; color: var(--ink);
+    padding: 8px 14px; border-radius: 999px;
+  }
+  .top nav a[aria-current] { background: var(--forest); color: var(--white); }
+  .top nav a.site { color: var(--muted); font-weight: 600; }
+  .top nav a.site:hover { color: var(--teal-deep); }
+
+  /* 상단 요약 */
+  .hero {
+    background: radial-gradient(900px 320px at 85% -20%, rgba(62,240,200,.22), transparent 60%),
+                linear-gradient(135deg, var(--forest) 0%, var(--forest-2) 100%);
+    color: var(--white);
+    padding: 34px 0 78px;
+  }
+  .hero .eyebrow { font-size: 12.5px; font-weight: 700; color: var(--mint); letter-spacing: .02em; }
+  .hero h1 { margin: 6px 0 4px; font-size: 28px; font-weight: 800; letter-spacing: -.025em; line-height: 1.3; }
+  .hero p { margin: 0; color: rgba(255,255,255,.72); font-size: 14px; }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: -48px; }
+  .stat {
+    background: var(--white); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 16px 18px; text-align: left; cursor: pointer;
+    box-shadow: 0 6px 20px rgba(10,53,51,.06);
+    transition: border-color .15s, transform .15s;
+  }
+  .stat:hover { border-color: var(--teal); transform: translateY(-1px); }
+  .stat[aria-pressed="true"] { border-color: var(--teal); box-shadow: 0 0 0 3px var(--tint), 0 6px 20px rgba(10,53,51,.06); }
+  .stat .k { font-size: 12.5px; font-weight: 700; color: var(--muted); }
+  .stat .v { margin-top: 4px; font-size: 28px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .stat .v small { font-size: 14px; font-weight: 700; color: var(--faint); margin-left: 2px; }
+  .stat.alert .v { color: var(--coral); }
+
+  /* 도구 막대 */
+  .tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 26px 0 12px; }
+  .search { flex: 1 1 260px; position: relative; }
+  .search input {
+    width: 100%; height: 44px; padding: 0 14px 0 40px;
+    background: var(--white); border: 1px solid var(--line); border-radius: 12px; outline: none;
+  }
+  .search input:focus, .tools select:focus { border-color: var(--teal); box-shadow: 0 0 0 3px var(--tint); }
+  .search svg { position: absolute; left: 13px; top: 13px; color: var(--faint); }
+  .tools select {
+    height: 44px; padding: 0 34px 0 14px; border: 1px solid var(--line); border-radius: 12px; outline: none;
+    background: var(--white) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4.5l4 4 4-4' fill='none' stroke='%235c6b6a' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center;
+    appearance: none; -webkit-appearance: none; font-weight: 600;
+  }
+  .count { margin-left: auto; font-size: 13px; color: var(--muted); font-weight: 600; }
+  .count b { color: var(--teal-deep); font-weight: 800; }
+
+  /* 리스트 */
+  .card { background: var(--white); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    text-align: left; font-size: 12.5px; font-weight: 700; color: var(--muted);
+    background: var(--bg); padding: 12px 18px; border-bottom: 1px solid var(--line); white-space: nowrap;
+  }
+  td { padding: 15px 18px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  tbody tr { cursor: pointer; transition: background .12s; }
+  tbody tr:hover, tbody tr:focus-visible { background: var(--bg); outline: none; }
+  tbody tr:last-child td { border-bottom: 0; }
+  .when { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .when b { display: block; font-weight: 700; }
+  .when span { font-size: 12.5px; color: var(--faint); }
+  .hosp { font-weight: 700; }
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--coral); margin-right: 7px; vertical-align: 2px; }
+  .tel { font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ink-2); }
+  .role { font-size: 13px; color: var(--muted); white-space: nowrap; }
+  .badge {
+    display: inline-block; font-size: 12.5px; font-weight: 700; white-space: nowrap;
+    padding: 4px 11px; border-radius: 999px;
+  }
+  .s-new  { background: var(--coral-tint); color: #d93a3a; }
+  .s-call { background: #fff3cf; color: #8a6400; }
+  .s-meet { background: var(--tint); color: var(--teal-deep); }
+  .s-won  { background: var(--forest); color: var(--mint); }
+  .s-hold { background: #eef2f1; color: var(--faint); }
+  .empty { padding: 56px 20px; text-align: center; color: var(--faint); }
+
+  .note { margin: 14px 2px 48px; font-size: 12.5px; color: var(--faint); }
+
+  /* 상세 패널 */
+  .scrim { position: fixed; inset: 0; background: rgba(10,53,51,.38); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 30; }
+  .drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(420px, 100%); background: var(--white); z-index: 31;
+    transform: translateX(100%); transition: transform .22s ease; display: flex; flex-direction: column;
+    box-shadow: -12px 0 40px rgba(10,53,51,.14);
+  }
+  body.open .scrim { opacity: 1; pointer-events: auto; }
+  body.open .drawer { transform: none; }
+  .drawer header { padding: 22px 24px 18px; border-bottom: 1px solid var(--line); display: flex; gap: 12px; align-items: flex-start; }
+  .drawer h2 { margin: 8px 0 0; font-size: 21px; font-weight: 800; letter-spacing: -.02em; }
+  .drawer .x { margin-left: auto; border: 0; background: var(--bg); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 18px; color: var(--muted); }
+  .drawer dl { margin: 0; padding: 8px 24px; }
+  .drawer dl div { display: flex; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .drawer dt { flex: 0 0 76px; font-size: 13px; font-weight: 700; color: var(--muted); }
+  .drawer dd { margin: 0; font-weight: 600; }
+  .drawer .act { margin-top: auto; padding: 18px 24px 24px; }
+  .btn {
+    display: flex; align-items: center; justify-content: center; height: 50px; border-radius: 999px;
+    background: var(--coral); color: var(--white); font-weight: 800; text-decoration: none;
+    box-shadow: 0 8px 20px rgba(255,87,87,.28);
+  }
+
+  /* 로그인 화면 */
+  .gate {
+    position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 20px;
+    background: radial-gradient(900px 420px at 80% -10%, rgba(62,240,200,.22), transparent 60%),
+                linear-gradient(135deg, var(--forest) 0%, var(--forest-2) 100%);
+  }
+  .gate[hidden] { display: none; }
+  .gate .box { width: min(400px, 100%); background: var(--white); border-radius: 20px; padding: 36px 30px 30px; text-align: center; box-shadow: 0 24px 60px rgba(0,0,0,.25); }
+  .gate img { height: 28px; width: auto; }
+  .gate h2 { margin: 22px 0 6px; font-size: 21px; font-weight: 800; letter-spacing: -.02em; }
+  .gate p { margin: 0 0 22px; color: var(--muted); font-size: 14px; word-break: keep-all; }
+  .gate .btn { width: 100%; border: 0; cursor: pointer; font-size: 15px; }
+  .gate .btn[disabled] { opacity: .6; cursor: default; }
+  .gate .err { margin: 14px 0 0; color: #d93a3a; font-size: 13px; }
+  .who { font-size: 13px; color: var(--muted); font-weight: 600; align-self: center; margin-right: 2px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .out { border: 1px solid var(--line); background: var(--white); border-radius: 999px; padding: 7px 13px; font-size: 13px; font-weight: 700; color: var(--muted); cursor: pointer; }
+  .out:hover { border-color: var(--teal); color: var(--teal-deep); }
+
+  @media (max-width: 760px) {
+    .who { display: none; }
+    .wrap { padding: 0 16px; }
+    .top nav a.site { display: none; }
+    .hero h1 { font-size: 23px; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .count { width: 100%; margin-left: 2px; }
+    thead { display: none; }
+    table, tbody, tr, td { display: block; }
+    tbody tr { padding: 14px 16px; border-bottom: 1px solid var(--line); position: relative; }
+    tbody tr:last-child { border-bottom: 0; }
+    td { padding: 0; border: 0; }
+    td.when { font-size: 12.5px; color: var(--faint); margin-bottom: 4px; }
+    td.when b { display: inline; font-weight: 600; margin-right: 4px; }
+    td.c-name, td.c-tel, td.c-role { display: inline; font-size: 13px; color: var(--muted); }
+    td.c-name::after, td.c-tel::after { content: " · "; }
+    td.c-status { position: absolute; top: 14px; right: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="gate" id="gate">
+  <div class="box">
+    <img src="assets/logo.png" alt="아프지마케팅">
+    <h2 id="gTitle">아프지마케팅 CRM</h2>
+    <p id="gMsg">확인하는 중…</p>
+    <button class="btn" id="gBtn" hidden>Google 계정으로 로그인</button>
+    <div class="err" id="gErr"></div>
+  </div>
+</div>
+
+<div class="top">
+  <div class="wrap">
+    <img src="assets/logo.png" alt="아프지마케팅" width="123" height="24">
+    <span class="tag">CRM</span>
+    <nav>
+      <a href="./" aria-current="page">접수 고객</a>
+      <a class="site" href="https://apgmarketing.kr/" target="_blank" rel="noopener">홈페이지 ↗</a>
+      <span class="who" id="who"></span>
+      <button class="out" id="out" hidden>로그아웃</button>
+    </nav>
+  </div>
+</div>
+
+<section class="hero">
+  <div class="wrap">
+    <div class="eyebrow">상담 신청 접수 현황</div>
+    <h1>접수 고객</h1>
+    <p>홈페이지 상담 신청서로 들어온 병원을 접수 순서대로 확인합니다.</p>
+  </div>
+</section>
+
+<main class="wrap">
+  <div class="stats" id="stats"></div>
+
+  <div class="tools">
+    <label class="search">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="5.5"/><path d="M12.5 12.5L16 16"/></svg>
+      <input id="q" type="search" placeholder="병원명, 성함, 연락처 검색" autocomplete="off">
+    </label>
+    <select id="fStatus" aria-label="진행 상태"></select>
+    <select id="fRole" aria-label="신청자 구분"></select>
+    <div class="count" id="count"></div>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>접수일시</th><th>병원명</th><th>성함</th><th>연락처</th><th>신청자 구분</th><th>진행 상태</th></tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="empty" id="empty" hidden></div>
+  </div>
+  <p class="note">홈페이지 상담 신청서로 접수된 고객이 최신순으로 표시됩니다.</p>
+</main>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-hidden="true" role="dialog" aria-label="접수 고객 상세">
+  <header>
+    <div><span class="badge" id="dStatus"></span><h2 id="dHosp"></h2></div>
+    <button class="x" id="dClose" aria-label="닫기">×</button>
+  </header>
+  <dl id="dBody"></dl>
+  <div class="act"><a class="btn" id="dCall" href="#">전화 걸기</a></div>
+</aside>
+
+<script>
+/* ── 데이터 ─────────────────────────────────────────────
+   Firestore leads 컬렉션에서 읽습니다 (apg-fb.js). 항목은 홈페이지 상담 신청서와 같습니다. */
+const STATUS = {
+  new:  { label: '신규 접수', cls: 's-new'  },
+  call: { label: '연락 완료', cls: 's-call' },
+  meet: { label: '상담 예정', cls: 's-meet' },
+  won:  { label: '계약',      cls: 's-won'  },
+  hold: { label: '보류',      cls: 's-hold' },
+};
+const ROLES = ['원장 / 대표원장', '개원 준비중', '병원 내 담당자'];
+
+/* ── 화면 ───────────────────────────────────────────── */
+let leads = [], fb = null, loadError = '';
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pad = n => String(n).padStart(2, '0');
+const sameDay = (a, b) => a.toDateString() === b.toDateString();
+const fmtDate = d => `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`;
+const fmtTime = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+function dayLabel(d) {
+  const now = new Date(), y = new Date(); y.setDate(now.getDate() - 1);
+  return sameDay(d, now) ? '오늘' : sameDay(d, y) ? '어제' : fmtDate(d);
+}
+
+const state = { q: '', status: '', role: '', quick: 'all' };
+const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 6); weekAgo.setHours(0, 0, 0, 0);
+const QUICK = {
+  all:   { k: '전체 접수',     f: () => true },
+  today: { k: '오늘 접수',     f: l => sameDay(l.at, new Date()) },
+  week:  { k: '최근 7일',      f: l => l.at >= weekAgo },
+  new:   { k: '미확인 신규',   f: l => l.status === 'new', alert: true },
+};
+
+function renderStats() {
+  $('stats').innerHTML = Object.entries(QUICK).map(([id, q]) => {
+    const n = leads.filter(q.f).length;
+    return `<button class="stat${q.alert && n ? ' alert' : ''}" data-quick="${id}" aria-pressed="${state.quick === id}">
+      <div class="k">${q.k}</div><div class="v">${n}<small>건</small></div></button>`;
+  }).join('');
+}
+
+function visible() {
+  const q = state.q.trim().toLowerCase(), digits = q.replace(/\D/g, '');
+  return leads.filter(l =>
+    QUICK[state.quick].f(l) &&
+    (!state.status || l.status === state.status) &&
+    (!state.role || l.role === state.role) &&
+    (!q || l.hosp.toLowerCase().includes(q) || l.name.toLowerCase().includes(q) ||
+      (digits && l.tel.replace(/\D/g, '').includes(digits)))
+  );
+}
+
+function renderRows() {
+  const list = visible();
+  $('rows').innerHTML = list.map(l => `
+    <tr tabindex="0" data-i="${leads.indexOf(l)}">
+      <td class="when"><b>${dayLabel(l.at)}</b><span>${fmtTime(l.at)}</span></td>
+      <td class="hosp">${l.status === 'new' ? '<i class="dot" title="미확인"></i>' : ''}${esc(l.hosp)}</td>
+      <td class="c-name">${esc(l.name)}</td>
+      <td class="tel c-tel">${esc(l.tel)}</td>
+      <td class="role c-role">${esc(l.role)}</td>
+      <td class="c-status"><span class="badge ${STATUS[l.status].cls}">${STATUS[l.status].label}</span></td>
+    </tr>`).join('');
+  $('empty').hidden = list.length > 0;
+  $('empty').textContent = loadError || (leads.length ? '조건에 맞는 접수 고객이 없습니다.' : '아직 접수된 고객이 없습니다.');
+  $('count').innerHTML = `<b>${list.length}</b>건 표시 / 전체 ${leads.length}건`;
+}
+
+function openLead(l) {
+  const s = STATUS[l.status];
+  $('dStatus').className = 'badge ' + s.cls; $('dStatus').textContent = s.label;
+  $('dHosp').textContent = l.hosp;
+  $('dBody').innerHTML = [
+    ['접수일시', `${fmtDate(l.at)} ${fmtTime(l.at)}`], ['성함', l.name], ['연락처', l.tel], ['신청자 구분', l.role],
+  ].map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('');
+  $('dCall').href = 'tel:' + l.tel.replace(/\D/g, '');
+  document.body.classList.add('open'); $('drawer').setAttribute('aria-hidden', 'false'); $('dClose').focus();
+}
+function closeLead() { document.body.classList.remove('open'); $('drawer').setAttribute('aria-hidden', 'true'); }
+
+$('fStatus').innerHTML = '<option value="">진행 상태 전체</option>' +
+  Object.entries(STATUS).map(([k, s]) => `<option value="${k}">${s.label}</option>`).join('');
+$('fRole').innerHTML = '<option value="">신청자 구분 전체</option>' + ROLES.map(r => `<option>${r}</option>`).join('');
+
+$('q').addEventListener('input', e => { state.q = e.target.value; renderRows(); });
+$('fStatus').addEventListener('change', e => { state.status = e.target.value; renderRows(); });
+$('fRole').addEventListener('change', e => { state.role = e.target.value; renderRows(); });
+$('stats').addEventListener('click', e => {
+  const b = e.target.closest('[data-quick]'); if (!b) return;
+  state.quick = b.dataset.quick; renderStats(); renderRows();
+});
+$('rows').addEventListener('click', e => { const tr = e.target.closest('tr'); if (tr) openLead(leads[tr.dataset.i]); });
+$('rows').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.matches('tr')) openLead(leads[e.target.dataset.i]);
+});
+$('scrim').addEventListener('click', closeLead);
+$('dClose').addEventListener('click', closeLead);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLead(); });
+
+
+/* ── 로그인 · 불러오기 ─────────────────────────────── */
+function gate(title, msg, btn) {
+  $('gate').hidden = !title; if (!title) return;
+  $('gTitle').textContent = title; $('gMsg').textContent = msg;
+  $('gBtn').hidden = !btn; $('gBtn').textContent = btn || ''; $('gBtn').disabled = false;
+}
+async function refresh() {
+  $('count').textContent = '불러오는 중…'; loadError = '';
+  try { leads = await fb.listLeads(); }
+  catch (e) { leads = []; loadError = '접수 고객을 불러오지 못했습니다. (' + (e.code || e.message) + ')'; }
+  renderStats(); renderRows();
+}
+async function enter() {
+  if (!fb.isSignedIn()) return gate('아프지마케팅 CRM', '등록된 구성원만 사용할 수 있습니다.', 'Google 계정으로 로그인');
+  const m = await fb.me(true);
+  if (!m.role) return gate('등록되지 않은 계정입니다', m.email + ' 계정은 CRM 구성원으로 등록돼 있지 않습니다. 관리자에게 등록을 요청하세요.', '다른 계정으로 로그인');
+  $('who').textContent = m.name || m.email; $('out').hidden = false;
+  gate(null); await refresh();
+}
+$('gBtn').addEventListener('click', async () => {
+  $('gBtn').disabled = true; $('gErr').textContent = '';
+  try { if (fb.isSignedIn()) await fb.signOut(); await fb.signIn(); await enter(); }
+  catch (e) { $('gErr').textContent = '로그인하지 못했습니다. (' + (e.code || e.message) + ')'; $('gBtn').disabled = false; }
+});
+$('out').addEventListener('click', async () => { await fb.signOut(); leads = []; $('who').textContent = ''; $('out').hidden = true; renderStats(); renderRows(); enter(); });
+
+renderStats(); renderRows();
+import('./apg-fb.js?v=1').then(async m => { fb = m; await fb.init(); await enter(); })
+  .catch(e => { gate('연결하지 못했습니다', 'Firebase에 연결하지 못했습니다. 새로고침해 주세요.'); $('gErr').textContent = String(e.message || e); });
+</script>
+</body>
+</html>
