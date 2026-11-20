@@ -1,6 +1,6 @@
 // 아프지마케팅 CRM — 홈페이지(아임웹) 상담신청 수신: POST /lead
 // 본문: text/plain JSON {hospital, name, phone, role, source, ts} → Firestore leads/imweb_{전화숫자}_{분단위}
-// 배포하려면 Firebase 요금제가 Blaze여야 합니다 (아직 배포 전).
+// 배포: Cloud Shell에서 firebase deploy --only functions (Blaze 요금제 필요)
 const { onRequest } = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
 admin.initializeApp();
@@ -22,7 +22,7 @@ async function notifySlack(l) {
   await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text }) });
 }
 
-exports.lead = onRequest({ region: 'asia-northeast3', cors: false, maxInstances: 5, invoker: 'public' }, async (req, res) => {
+exports.lead = onRequest({ region: 'asia-northeast3', cors: false, maxInstances: 5, invoker: 'public', serviceAccount: 'firebase-adminsdk-fbsvc@apg-crm-e3d36.iam.gserviceaccount.com' }, async (req, res) => {
   const origin = req.get('origin') || '';
   res.set('Access-Control-Allow-Origin', ORIGINS.includes(origin) ? origin : ORIGINS[0]);
   res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
