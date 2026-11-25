@@ -67,6 +67,7 @@ export async function listLeads() {
       role: String(x.role || ''), status: LEAD_STATUS.includes(x.status) ? x.status : 'new',
       at: toDate(x.submittedAt) || toDate(x.createdAt) || new Date(0),
       memo: String(x.memo || ''), statusAt: toDate(x.statusAt), statusBy: String(x.statusBy || ''),
+      utm: x.utm && typeof x.utm === 'object' ? x.utm : null,
     };
   });
 }
@@ -144,4 +145,20 @@ export async function addUser({ email, name, role }) {
 export async function removeUser(email) {
   await init(); need(); const { fs } = _mods;
   await fs.deleteDoc(fs.doc(_db, 'users', String(email || '').trim().toLowerCase()));
+}
+
+// ── 신규 접수 슬랙 알림 설정 (Firestore: secrets/slack.webhookUrl, 관리자만) ──
+// 주소 자체는 화면에 돌려주지 않고, 설정 여부와 끝 네 글자만 알려 줍니다.
+const SLACK_HOOK = /^https:\/\/hooks\.slack\.com\/services\/[A-Za-z0-9/_-]+$/;
+export async function getSlack() {
+  await init(); need(); const { fs } = _mods;
+  const d = await fs.getDoc(fs.doc(_db, 'secrets', 'slack'));
+  const url = d.exists() ? String(d.data().webhookUrl || '').trim() : '';
+  return { set: /^https:\/\/hooks\.slack\.com\//.test(url), tail: url.slice(-4) };
+}
+export async function setSlack(url) {
+  await init(); need(); const { fs } = _mods;
+  const u = String(url || '').trim();
+  if (!SLACK_HOOK.test(u)) { const e = new Error('슬랙 웹훅 주소가 아닙니다.'); e.code = 'invalid-argument'; throw e; }
+  await fs.setDoc(fs.doc(_db, 'secrets', 'slack'), { webhookUrl: u, updatedAt: fs.serverTimestamp(), updatedBy: userEmail() }, { merge: true });
 }
