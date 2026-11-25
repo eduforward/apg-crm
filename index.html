@@ -158,6 +158,25 @@
     box-shadow: 0 8px 20px rgba(255,87,87,.28);
   }
 
+  /* 상태 변경 (상세 패널) */
+  .drawer { overflow-y: auto; }
+  .chg { padding: 18px 24px 4px; }
+  .chg h3 { margin: 0 0 10px; font-size: 13px; font-weight: 700; color: var(--muted); }
+  .pick { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pick button { border: 1px solid var(--line); background: var(--white); border-radius: 999px; padding: 8px 14px; font-size: 13.5px; font-weight: 700; color: var(--ink-2); cursor: pointer; }
+  .pick button:hover { border-color: var(--teal); }
+  .pick button[aria-pressed="true"] { background: var(--forest); border-color: var(--forest); color: var(--white); }
+  .chg textarea {
+    display: block; width: 100%; min-height: 84px; margin-top: 12px; padding: 12px 14px; resize: vertical;
+    font: inherit; color: inherit; letter-spacing: inherit; line-height: 1.5;
+    background: var(--white); border: 1px solid var(--line); border-radius: 12px; outline: none;
+  }
+  .chg textarea:focus { border-color: var(--teal); box-shadow: 0 0 0 3px var(--tint); }
+  .chg .row { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+  .chg .row .msg { margin: 0; }
+  .chg .last { margin: 10px 0 0; font-size: 12.5px; color: var(--faint); }
+  .chg .last:empty { display: none; }
+
   /* 로그인 화면 */
   .gate {
     position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 20px;
@@ -341,6 +360,13 @@
     <button class="x" id="dClose" aria-label="닫기">×</button>
   </header>
   <dl id="dBody"></dl>
+  <section class="chg">
+    <h3>상태 변경</h3>
+    <div class="pick" id="dPick" role="group" aria-label="진행 상태"></div>
+    <textarea id="dMemo" placeholder="메모 (선택)" maxlength="1000" aria-label="메모"></textarea>
+    <div class="row"><button class="go" id="dSave" type="button" disabled>저장</button><p class="msg" id="dMsg" role="status"></p></div>
+    <p class="last" id="dLast"></p>
+  </section>
   <div class="act"><a class="btn" id="dCall" href="#">전화 걸기</a></div>
 </aside>
 
@@ -348,16 +374,20 @@
 /* ── 데이터 ─────────────────────────────────────────────
    Firestore leads 컬렉션에서 읽습니다 (apg-fb.js). 항목은 홈페이지 상담 신청서와 같습니다. */
 const STATUS = {
-  new:  { label: '신규 접수', cls: 's-new'  },
-  call: { label: '연락 완료', cls: 's-call' },
-  meet: { label: '상담 예정', cls: 's-meet' },
-  won:  { label: '계약',      cls: 's-won'  },
-  hold: { label: '보류',      cls: 's-hold' },
+  new:    { label: '신규 접수', cls: 's-new'  },
+  away:   { label: '부재중',    cls: 's-call' },
+  meet:   { label: '상담 예정', cls: 's-meet' },
+  won:    { label: '계약',      cls: 's-won'  },
+  closed: { label: '종료',      cls: 's-hold' },
+  // 예전 상태: 이미 그렇게 저장된 건에만 표시하고, 새로 고를 수는 없습니다.
+  call:   { label: '연락 완료', cls: 's-call', old: true },
+  hold:   { label: '보류',      cls: 's-hold', old: true },
 };
+const PICKABLE = Object.keys(STATUS).filter(k => !STATUS[k].old);
 const ROLES = ['원장 / 대표원장', '개원 준비중', '병원 내 담당자'];
 
 /* ── 화면 ───────────────────────────────────────────── */
-let leads = [], fb = null, loadError = '';
+let leads = [], fb = null, loadError = '', names = {};
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const pad = n => String(n).padStart(2, '0');
@@ -413,20 +443,54 @@ function renderRows() {
   $('count').innerHTML = `<b>${list.length}</b>건 표시 / 전체 ${leads.length}건`;
 }
 
-function openLead(l) {
-  const s = STATUS[l.status];
+/* 상세 패널: cur = 열려 있는 접수 건, pick = 고른(아직 저장 전) 진행 상태 */
+let cur = null, pick = '';
+function dSay(text, bad) { $('dMsg').textContent = text; $('dMsg').classList.toggle('bad', !!bad); }
+const dirty = () => !!cur && (pick !== cur.status || $('dMemo').value.trim() !== cur.memo);
+function renderChange() {
+  const s = STATUS[cur.status];
   $('dStatus').className = 'badge ' + s.cls; $('dStatus').textContent = s.label;
+  $('dPick').innerHTML = PICKABLE.map(k => `<button type="button" data-s="${k}" aria-pressed="${pick === k}">${STATUS[k].label}</button>`).join('');
+  $('dLast').textContent = cur.statusAt ? `최근 변경 ${fmtDate(cur.statusAt)} ${fmtTime(cur.statusAt)}` + (cur.statusBy ? ' · ' + (names[cur.statusBy] || cur.statusBy) : '') : '';
+  $('dSave').disabled = !dirty();
+}
+function openLead(l) {
+  cur = l; pick = l.status;
   $('dHosp').textContent = l.hosp;
   $('dBody').innerHTML = [
     ['접수일시', `${fmtDate(l.at)} ${fmtTime(l.at)}`], ['성함', l.name], ['연락처', l.tel], ['신청자 구분', l.role],
   ].map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('');
   $('dCall').href = 'tel:' + l.tel.replace(/\D/g, '');
+  $('dMemo').value = l.memo; dSay(''); renderChange();
   document.body.classList.add('open'); $('drawer').setAttribute('aria-hidden', 'false'); $('dClose').focus();
 }
-function closeLead() { document.body.classList.remove('open'); $('drawer').setAttribute('aria-hidden', 'true'); }
+function closeLead() { cur = null; document.body.classList.remove('open'); $('drawer').setAttribute('aria-hidden', 'true'); }
+
+/* 상태 변경: 상태를 고르고(메모는 선택) 저장. 메모만 고쳐서 저장할 수도 있습니다. */
+$('dPick').addEventListener('click', e => {
+  const b = e.target.closest('[data-s]'); if (!b || !cur) return;
+  pick = b.dataset.s; dSay(''); renderChange();
+});
+$('dMemo').addEventListener('input', () => { if (cur) { dSay(''); $('dSave').disabled = !dirty(); } });
+$('dSave').addEventListener('click', async () => {
+  if (!dirty()) return;
+  const l = cur, status = pick, memo = $('dMemo').value.trim();
+  $('dSave').disabled = true; dSay('');
+  try {
+    await fb.updateLead(l.id, { status, memo });
+    l.status = status; l.memo = memo; l.statusAt = new Date(); l.statusBy = fb.userEmail();
+    renderStats(); renderRows();
+    if (cur === l) { renderChange(); dSay('저장했습니다.'); }
+  } catch (err) {
+    if (cur === l) {
+      dSay(err.code === 'permission-denied' ? '변경할 권한이 없습니다.' : '저장하지 못했습니다. (' + (err.code || err.message) + ')', true);
+      $('dSave').disabled = !dirty();
+    }
+  }
+});
 
 $('fStatus').innerHTML = '<option value="">진행 상태 전체</option>' +
-  Object.entries(STATUS).map(([k, s]) => `<option value="${k}">${s.label}</option>`).join('');
+  PICKABLE.map(k => `<option value="${k}">${STATUS[k].label}</option>`).join('');
 $('fRole').innerHTML = '<option value="">신청자 구분 전체</option>' + ROLES.map(r => `<option>${r}</option>`).join('');
 
 $('q').addEventListener('input', e => { state.q = e.target.value; renderRows(); });
@@ -541,6 +605,8 @@ async function refresh() {
   try { leads = await fb.listLeads(); }
   catch (e) { leads = []; loadError = '접수 고객을 불러오지 못했습니다. (' + (e.code || e.message) + ')'; }
   renderStats(); renderRows();
+  // "최근 변경"에 이메일 대신 이름을 보여 주기 위한 팀원 이름표 (못 불러와도 화면은 그대로 동작)
+  fb.listUsers().then(us => { us.forEach(u => { if (u.name) names[u.email] = u.name; }); if (cur) renderChange(); }).catch(() => {});
 }
 async function enter() {
   if (!fb.isSignedIn()) return gate('아프지마케팅 CRM', '등록된 구성원만 사용할 수 있습니다.', 'Google 계정으로 로그인');
@@ -558,7 +624,7 @@ $('gBtn').addEventListener('click', async () => {
 $('out').addEventListener('click', async () => { await fb.signOut(); leads = []; team = []; meInfo = null; route(); $('who').textContent = ''; $('out').hidden = true; renderStats(); renderRows(); enter(); });
 
 renderStats(); renderRows();
-import('./apg-fb.js?v=2').then(async m => { fb = m; await fb.init(); await enter(); })
+import('./apg-fb.js?v=3').then(async m => { fb = m; await fb.init(); await enter(); })
   .catch(e => { gate('연결하지 못했습니다', 'Firebase에 연결하지 못했습니다. 새로고침해 주세요.'); $('gErr').textContent = String(e.message || e); });
 </script>
 </body>

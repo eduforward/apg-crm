@@ -54,7 +54,8 @@ export async function me(force) {
 }
 
 // ── 홈페이지 상담신청 (Firestore: leads/{id}, Cloud Function이 기록) ──
-export const LEAD_STATUS = ['new', 'call', 'meet', 'won', 'hold'];
+// 진행 상태: new(신규 접수) · away(부재중) · meet(상담 예정) · won(계약) · closed(종료). call·hold 는 예전 상태로, 읽기만 합니다.
+export const LEAD_STATUS = ['new', 'away', 'meet', 'won', 'closed', 'call', 'hold'];
 const toDate = t => t && typeof t.toDate === 'function' ? t.toDate() : (t ? new Date(t) : null);
 export async function listLeads() {
   await init(); need(); const { fs } = _mods;
@@ -65,7 +66,16 @@ export async function listLeads() {
       id: d.id, hosp: String(x.hospital || ''), name: String(x.name || ''), tel: String(x.phone || x.phoneDigits || ''),
       role: String(x.role || ''), status: LEAD_STATUS.includes(x.status) ? x.status : 'new',
       at: toDate(x.submittedAt) || toDate(x.createdAt) || new Date(0),
+      memo: String(x.memo || ''), statusAt: toDate(x.statusAt), statusBy: String(x.statusBy || ''),
     };
+  });
+}
+// 진행 상태·메모 저장. 규칙이 허용하는 항목(status · memo · statusAt · statusBy)만 고칩니다.
+export async function updateLead(id, { status, memo }) {
+  await init(); need(); const { fs } = _mods;
+  if (!LEAD_STATUS.includes(status)) throw new Error('알 수 없는 진행 상태입니다.');
+  await fs.updateDoc(fs.doc(_db, 'leads', String(id)), {
+    status, memo: String(memo || '').trim().slice(0, 1000), statusAt: fs.serverTimestamp(), statusBy: userEmail(),
   });
 }
 
