@@ -25,9 +25,22 @@ service cloud.firestore {
       allow create: if false;
       allow update: if isUser() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'memo', 'assignedTo', 'assignedName', 'statusAt', 'statusBy']);
       allow delete: if isAdmin();
+      // 고객 히스토리(상태 변경 기록): 구성원이 쌓기만 하고, 고치거나 지울 수 없음
+      match /history/{hid} {
+        allow read: if isUser();
+        allow create: if isUser()
+          && request.resource.data.keys().hasOnly(['from', 'to', 'memo', 'by', 'byName', 'at'])
+          && request.resource.data.keys().hasAll(['from', 'to', 'memo', 'by', 'at'])
+          && request.resource.data.by == email()
+          && request.resource.data.at == request.time
+          && request.resource.data.from is string && request.resource.data.to is string
+          && request.resource.data.memo is string && request.resource.data.memo.size() <= 1000;
+        allow update, delete: if false;
+      }
     }
     // 비밀 설정(슬랙 웹훅 등): 관리자만
     match /secrets/{id} { allow read, write: if isAdmin(); }
   }
 }
 // v1 — 2026-11-20: users · leads · secrets
+// v2 — 2026-11-25: leads/{id}/history (고객 히스토리)

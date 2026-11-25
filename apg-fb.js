@@ -70,12 +70,34 @@ export async function listLeads() {
     };
   });
 }
-// 진행 상태·메모 저장. 규칙이 허용하는 항목(status · memo · statusAt · statusBy)만 고칩니다.
-export async function updateLead(id, { status, memo }) {
+// 진행 상태·메모 저장 + 고객 히스토리(leads/{id}/history)에 기록 한 줄.
+// 접수 건은 규칙이 허용하는 항목(status · memo · statusAt · statusBy)만 고칩니다. memo 에는 가장 최근에 적은 메모가 남습니다.
+// 돌려주는 값 { logged }: 기록까지 남았으면 true. 기록 규칙이 아직 배포되지 않았으면 상태만 저장하고 false.
+export async function updateLead(id, { status, memo, from }) {
   await init(); need(); const { fs } = _mods;
   if (!LEAD_STATUS.includes(status)) throw new Error('알 수 없는 진행 상태입니다.');
-  await fs.updateDoc(fs.doc(_db, 'leads', String(id)), {
-    status, memo: String(memo || '').trim().slice(0, 1000), statusAt: fs.serverTimestamp(), statusBy: userEmail(),
+  const m = String(memo || '').trim().slice(0, 1000), ref = fs.doc(_db, 'leads', String(id));
+  const patch = { status, statusAt: fs.serverTimestamp(), statusBy: userEmail() };
+  if (m) patch.memo = m;
+  const entry = { from: String(from || ''), to: status, memo: m, by: userEmail(), byName: (_me && _me.name) || '', at: fs.serverTimestamp() };
+  try {
+    const b = fs.writeBatch(_db);
+    b.update(ref, patch); b.set(fs.doc(fs.collection(ref, 'history')), entry);
+    await b.commit();
+    return { logged: true };
+  } catch (e) {
+    if (e.code !== 'permission-denied') throw e;
+    await fs.updateDoc(ref, patch);
+    return { logged: false };
+  }
+}
+// 고객 히스토리: 최신순. { from, to, memo, by, byName, at }
+export async function listLeadHistory(id) {
+  await init(); need(); const { fs } = _mods;
+  const s = await fs.getDocs(fs.query(fs.collection(_db, 'leads', String(id), 'history'), fs.orderBy('at', 'desc'), fs.limit(100)));
+  return s.docs.map(d => {
+    const x = d.data();
+    return { id: d.id, from: String(x.from || ''), to: String(x.to || ''), memo: String(x.memo || ''), by: String(x.by || ''), byName: String(x.byName || ''), at: toDate(x.at) };
   });
 }
 
