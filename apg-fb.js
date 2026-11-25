@@ -101,6 +101,24 @@ export async function listLeadHistory(id) {
   });
 }
 
+// 고객(접수 건) 삭제: 관리자만. 히스토리까지 한 묶음으로 지웁니다. 되돌릴 수 없습니다.
+// 돌려주는 값 { historyDeleted }: 히스토리 삭제 규칙이 아직 배포되지 않았으면 접수 건만 지우고 false.
+export async function deleteLead(id) {
+  await init(); need(); const { fs } = _mods;
+  const ref = fs.doc(_db, 'leads', String(id));
+  const hs = await fs.getDocs(fs.query(fs.collection(ref, 'history'), fs.limit(400)));
+  try {
+    const b = fs.writeBatch(_db);
+    hs.docs.forEach(d => b.delete(d.ref)); b.delete(ref);
+    await b.commit();
+    return { historyDeleted: true };
+  } catch (e) {
+    if (e.code !== 'permission-denied' || !hs.docs.length) throw e;
+    await fs.deleteDoc(ref);
+    return { historyDeleted: false };
+  }
+}
+
 // ── 팀원(계정) 관리 (Firestore: users/{소문자 이메일}) ──
 // 역할: super(최고관리자) · admin(관리자) · scheduler(일정 담당자) · member(구성원). 추가·제거 권한은 firestore.rules 가 판정합니다.
 export const TEAM_ROLES = ['super', 'admin', 'scheduler', 'member'];

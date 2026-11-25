@@ -190,6 +190,8 @@
   .last { margin: 0; font-size: 12.5px; color: var(--faint); }
   .last:empty { display: none; }
   .drawer .act { position: sticky; bottom: 0; background: var(--white); }
+  /* 고객 삭제 (관리자만) */
+  .dsec { padding: 4px 24px 18px; text-align: right; }
 
   /* 버전 정보 · 업데이트 내역 */
   .foot { padding: 0 0 40px; }
@@ -417,6 +419,9 @@
     <ol class="tl" id="dHist"></ol>
     <p class="last" id="dHistNote"></p>
   </section>
+  <section class="dsec" id="dDelBox" hidden>
+    <button class="rm" id="dDel" type="button">고객 삭제</button>
+  </section>
   <div class="act"><a class="btn" id="dCall" href="#">전화 걸기</a></div>
 </aside>
 
@@ -532,6 +537,7 @@ function openLead(l) {
   ].map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('');
   $('dCall').href = 'tel:' + l.tel.replace(/\D/g, '');
   $('dMemo').value = ''; dSay(''); renderChange(); loadHistory(l);
+  $('dDelBox').hidden = !(meInfo && meInfo.admin); $('dDel').disabled = false;
   document.body.classList.add('open'); $('drawer').setAttribute('aria-hidden', 'false'); $('drawer').scrollTop = 0; $('dClose').focus();
 }
 function closeLead() { cur = null; document.body.classList.remove('open'); $('drawer').setAttribute('aria-hidden', 'true'); }
@@ -562,6 +568,24 @@ async function saveLead(status) {
 $('dPick').addEventListener('click', e => { const b = e.target.closest('[data-s]'); if (b && cur) saveLead(b.dataset.s); });
 $('dMemo').addEventListener('input', () => { if (cur) { dSay(''); $('dSave').disabled = busy || !$('dMemo').value.trim(); } });
 $('dSave').addEventListener('click', () => { if (cur) saveLead(cur.status); });
+
+/* 고객 삭제: 관리자만. 히스토리까지 함께 지워지고 되돌릴 수 없어서 한 번 더 묻습니다. */
+$('dDel').addEventListener('click', async () => {
+  const l = cur; if (!l || busy || !(meInfo && meInfo.admin)) return;
+  const who = [l.hosp, l.name].filter(Boolean).join(' · ');
+  if (!confirm(who + ' 접수 건을 삭제할까요?\n히스토리도 함께 지워지고, 되돌릴 수 없습니다.')) return;
+  busy = true; dSay(''); renderChange(); $('dDel').disabled = true;
+  try {
+    await fb.deleteLead(l.id);
+    busy = false; $('dDel').disabled = false;
+    leads = leads.filter(x => x !== l);
+    if (cur === l) closeLead();
+    renderStats(); renderRows();
+  } catch (err) {
+    busy = false; $('dDel').disabled = false;
+    if (cur === l) { renderChange(); dSay(err.code === 'permission-denied' ? '삭제할 권한이 없습니다.' : '삭제하지 못했습니다. (' + (err.code || err.message) + ')', true); }
+  }
+});
 
 $('fStatus').innerHTML = '<option value="">진행 상태 전체</option>' +
   PICKABLE.map(k => `<option value="${k}">${STATUS[k].label}</option>`).join('');
