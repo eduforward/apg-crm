@@ -68,3 +68,30 @@ export async function listLeads() {
     };
   });
 }
+
+// ── 팀원(계정) 관리 (Firestore: users/{소문자 이메일}) ──
+// 역할: super(최고관리자) · admin(관리자) · scheduler(일정 담당자) · member(구성원). 추가·제거 권한은 firestore.rules 가 판정합니다.
+export const TEAM_ROLES = ['super', 'admin', 'scheduler', 'member'];
+export async function listUsers() {
+  await init(); need(); const { fs } = _mods;
+  const s = await fs.getDocs(fs.collection(_db, 'users'));
+  const list = s.docs.map(d => {
+    const x = d.data();
+    return {
+      email: d.id, name: String(x.name || ''), addedAt: toDate(x.addedAt), addedBy: String(x.addedBy || ''),
+      role: ROOT_ADMINS.includes(d.id) ? 'super' : (TEAM_ROLES.includes(x.role) ? x.role : 'member'),
+    };
+  });
+  ROOT_ADMINS.forEach(e => { if (!list.some(u => u.email === e)) list.push({ email: e, name: '', addedAt: null, addedBy: '', role: 'super' }); });
+  return list;
+}
+export async function addUser({ email, name, role }) {
+  await init(); need(); const { fs } = _mods;
+  const id = String(email || '').trim().toLowerCase(), ref = fs.doc(_db, 'users', id);
+  if ((await fs.getDoc(ref)).exists()) { const e = new Error('이미 등록된 이메일입니다.'); e.code = 'already-exists'; throw e; }
+  await fs.setDoc(ref, { email: id, name: String(name || '').trim(), role, addedBy: userEmail(), addedAt: fs.serverTimestamp() });
+}
+export async function removeUser(email) {
+  await init(); need(); const { fs } = _mods;
+  await fs.deleteDoc(fs.doc(_db, 'users', String(email || '').trim().toLowerCase()));
+}
