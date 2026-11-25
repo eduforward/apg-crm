@@ -166,6 +166,8 @@
   .pick button { border: 1px solid var(--line); background: var(--white); border-radius: 999px; padding: 8px 14px; font-size: 13.5px; font-weight: 700; color: var(--ink-2); cursor: pointer; }
   .pick button:hover { border-color: var(--teal); }
   .pick button[aria-pressed="true"] { background: var(--forest); border-color: var(--forest); color: var(--white); }
+  .pick button[disabled] { opacity: .6; cursor: default; }
+  .chg .tip { margin: 10px 0 0; font-size: 12.5px; color: var(--faint); word-break: keep-all; }
   .chg textarea {
     display: block; width: 100%; min-height: 84px; margin-top: 12px; padding: 12px 14px; resize: vertical;
     font: inherit; color: inherit; letter-spacing: inherit; line-height: 1.5;
@@ -407,7 +409,8 @@
     <h3>상태 변경</h3>
     <div class="pick" id="dPick" role="group" aria-label="진행 상태"></div>
     <textarea id="dMemo" placeholder="메모 (선택)" maxlength="1000" aria-label="메모"></textarea>
-    <div class="row"><button class="go" id="dSave" type="button" disabled>저장</button><p class="msg" id="dMsg" role="status"></p></div>
+    <div class="row"><button class="go" id="dSave" type="button" disabled>메모 저장</button><p class="msg" id="dMsg" role="status"></p></div>
+    <p class="tip">상태는 누르면 바로 저장됩니다. 메모를 먼저 적고 상태를 누르면 함께 기록됩니다.</p>
   </section>
   <section class="hsec">
     <h3>히스토리</h3>
@@ -490,15 +493,14 @@ function renderRows() {
   $('count').innerHTML = `<b>${list.length}</b>건 표시 / 전체 ${leads.length}건`;
 }
 
-/* 상세 패널: cur = 열려 있는 접수 건, pick = 고른(아직 저장 전) 진행 상태, hist = 그 건의 히스토리(최신순) */
-let cur = null, pick = '', hist = [], histNote = '';
+/* 상세 패널: cur = 열려 있는 접수 건, busy = 저장 중, hist = 그 건의 히스토리(최신순) */
+let cur = null, busy = false, hist = [], histNote = '';
 function dSay(text, bad) { $('dMsg').textContent = text; $('dMsg').classList.toggle('bad', !!bad); }
-const dirty = () => !!cur && (pick !== cur.status || $('dMemo').value.trim() !== '');
 function renderChange() {
   const s = STATUS[cur.status];
   $('dStatus').className = 'badge ' + s.cls; $('dStatus').textContent = s.label;
-  $('dPick').innerHTML = PICKABLE.map(k => `<button type="button" data-s="${k}" aria-pressed="${pick === k}">${STATUS[k].label}</button>`).join('');
-  $('dSave').disabled = !dirty();
+  $('dPick').innerHTML = PICKABLE.map(k => `<button type="button" data-s="${k}" aria-pressed="${cur.status === k}"${busy ? ' disabled' : ''}>${STATUS[k].label}</button>`).join('');
+  $('dSave').disabled = busy || !$('dMemo').value.trim();
 }
 /* 히스토리: 상태 변경·메모 기록(최신순) + 맨 아래 접수 */
 function renderHistory() {
@@ -523,7 +525,7 @@ async function loadHistory(l) {
   hist = list; histNote = note; renderHistory();
 }
 function openLead(l) {
-  cur = l; pick = l.status;
+  cur = l; busy = false;
   $('dHosp').textContent = l.hosp;
   $('dBody').innerHTML = [
     ['접수일시', `${fmtDate(l.at)} ${fmtTime(l.at)}`], ['성함', l.name], ['연락처', l.tel], ['신청자 구분', l.role],
@@ -534,32 +536,32 @@ function openLead(l) {
 }
 function closeLead() { cur = null; document.body.classList.remove('open'); $('drawer').setAttribute('aria-hidden', 'true'); }
 
-/* 상태 변경: 상태를 고르고(메모는 선택) 저장. 상태는 그대로 두고 메모만 남길 수도 있습니다. 저장할 때마다 히스토리에 한 줄 쌓입니다. */
-$('dPick').addEventListener('click', e => {
-  const b = e.target.closest('[data-s]'); if (!b || !cur) return;
-  pick = b.dataset.s; dSay(''); renderChange();
-});
-$('dMemo').addEventListener('input', () => { if (cur) { dSay(''); $('dSave').disabled = !dirty(); } });
-$('dSave').addEventListener('click', async () => {
-  if (!dirty()) return;
-  const l = cur, status = pick, memo = $('dMemo').value.trim();
-  $('dSave').disabled = true; dSay('');
+/* 상태 변경: 상태를 누르면 바로 저장합니다(메모 칸에 적어 둔 내용이 있으면 함께). "메모 저장"은 상태는 그대로 두고 메모만 남깁니다.
+   저장할 때마다 히스토리에 한 줄 쌓입니다. */
+async function saveLead(status) {
+  const l = cur, memo = $('dMemo').value.trim();
+  if (!l || busy || (status === l.status && !memo)) return;
+  busy = true; dSay(''); renderChange();
   try {
     const r = await fb.updateLead(l.id, { status, memo, from: l.status });
     const entry = { from: l.status, to: status, memo, by: fb.userEmail(), byName: meInfo ? meInfo.name : '', at: new Date() };
     l.status = status; if (memo) l.memo = memo; l.statusAt = entry.at; l.statusBy = entry.by;
-    renderStats(); renderRows();
+    busy = false; renderStats(); renderRows();
     if (cur !== l) return;
     $('dMemo').value = ''; renderChange();
     if (r && r.logged === false) { await loadHistory(l); dSay('상태는 저장했지만 히스토리에는 남기지 못했습니다.', true); }
     else { hist.unshift(entry); renderHistory(); dSay('저장했습니다.'); }
   } catch (err) {
+    busy = false;
     if (cur === l) {
+      renderChange();
       dSay(err.code === 'permission-denied' ? '변경할 권한이 없습니다.' : '저장하지 못했습니다. (' + (err.code || err.message) + ')', true);
-      $('dSave').disabled = !dirty();
     }
   }
-});
+}
+$('dPick').addEventListener('click', e => { const b = e.target.closest('[data-s]'); if (b && cur) saveLead(b.dataset.s); });
+$('dMemo').addEventListener('input', () => { if (cur) { dSay(''); $('dSave').disabled = busy || !$('dMemo').value.trim(); } });
+$('dSave').addEventListener('click', () => { if (cur) saveLead(cur.status); });
 
 $('fStatus').innerHTML = '<option value="">진행 상태 전체</option>' +
   PICKABLE.map(k => `<option value="${k}">${STATUS[k].label}</option>`).join('');
