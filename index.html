@@ -133,7 +133,7 @@
   .s-hold { background: #eef2f1; color: var(--faint); }
   .empty { padding: 56px 20px; text-align: center; color: var(--faint); }
 
-  .note { margin: 14px 2px 48px; font-size: 12.5px; color: var(--faint); }
+  .note { margin: 14px 2px 28px; font-size: 12.5px; color: var(--faint); }
 
   /* 상세 패널 */
   .scrim { position: fixed; inset: 0; background: rgba(10,53,51,.38); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 30; }
@@ -176,6 +176,29 @@
   .chg .row .msg { margin: 0; }
   .chg .last { margin: 10px 0 0; font-size: 12.5px; color: var(--faint); }
   .chg .last:empty { display: none; }
+
+  /* 버전 정보 · 업데이트 내역 */
+  .foot { padding: 0 0 40px; }
+  .ver { border: 0; background: none; padding: 4px 2px; font-size: 12.5px; color: var(--faint); cursor: pointer; }
+  .ver b { font-weight: 700; color: var(--muted); }
+  .ver:hover { color: var(--teal-deep); text-decoration: underline; }
+  .hist {
+    width: min(520px, calc(100% - 32px)); max-height: min(640px, calc(100% - 48px)); padding: 0;
+    border: 0; border-radius: 18px; color: var(--ink); box-shadow: 0 24px 60px rgba(0,0,0,.25);
+  }
+  .hist::backdrop { background: rgba(10,53,51,.38); }
+  .hist header { position: sticky; top: 0; display: flex; align-items: center; padding: 20px 24px 16px; background: var(--white); border-bottom: 1px solid var(--line); }
+  .hist h2 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -.02em; }
+  .hist .x { margin-left: auto; border: 0; background: var(--bg); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 18px; color: var(--muted); }
+  .hist ol { list-style: none; margin: 0; padding: 4px 24px 18px; }
+  .hist ol > li { padding: 16px 0; border-bottom: 1px solid var(--line); }
+  .hist ol > li:last-child { border-bottom: 0; }
+  .hist .hv { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
+  .hist .hv b { font-weight: 800; color: var(--teal-deep); background: var(--tint); border-radius: 999px; padding: 3px 10px; }
+  .hist .hv i { font-style: normal; font-weight: 700; color: var(--muted); }
+  .hist h3 { margin: 8px 0 6px; font-size: 15px; font-weight: 800; letter-spacing: -.01em; }
+  .hist ul { margin: 0; padding-left: 18px; font-size: 13.5px; color: var(--ink-2); word-break: keep-all; }
+  .hist ul li { padding: 2px 0; }
 
   /* 로그인 화면 */
   .gate {
@@ -352,6 +375,14 @@
   <p class="note">제거한 계정은 CRM에 들어올 수 없습니다.</p>
 </main>
 </div>
+
+<footer class="foot">
+  <div class="wrap"><button class="ver" id="verBtn" type="button" hidden></button></div>
+</footer>
+<dialog class="hist" id="hist" aria-labelledby="histTitle">
+  <header><h2 id="histTitle">업데이트 내역</h2><button class="x" id="histClose" type="button" aria-label="닫기">×</button></header>
+  <ol id="histBody"></ol>
+</dialog>
 
 <div class="scrim" id="scrim"></div>
 <aside class="drawer" id="drawer" aria-hidden="true" role="dialog" aria-label="접수 고객 상세">
@@ -623,9 +654,27 @@ $('gBtn').addEventListener('click', async () => {
 });
 $('out').addEventListener('click', async () => { await fb.signOut(); leads = []; team = []; meInfo = null; route(); $('who').textContent = ''; $('out').hidden = true; renderStats(); renderRows(); enter(); });
 
+/* ── 버전 정보 · 업데이트 내역 (apg-version.js) ───────── */
+let ver = null;
+function renderVersion() {
+  $('verBtn').innerHTML = `<b>v${esc(ver.VERSION)}</b> · 업데이트 내역`; $('verBtn').hidden = false;
+  $('histBody').innerHTML = ver.HISTORY.map((h, i) => `<li>
+    <div class="hv"><b>v${esc(h.v)}</b><span>${esc(h.date.replace(/-/g, '.'))}</span>${i === 0 ? '<i>현재 버전</i>' : ''}</div>
+    <h3>${esc(h.title)}</h3>
+    <ul>${h.items.map(t => `<li>${esc(t)}</li>`).join('')}</ul>
+  </li>`).join('');
+}
+$('verBtn').addEventListener('click', () => { $('hist').showModal(); $('hist').scrollTop = 0; });
+$('histClose').addEventListener('click', () => $('hist').close());
+$('hist').addEventListener('click', e => { if (e.target === $('hist')) $('hist').close(); });
+
 renderStats(); renderRows();
-import('./apg-fb.js?v=3').then(async m => { fb = m; await fb.init(); await enter(); })
-  .catch(e => { gate('연결하지 못했습니다', 'Firebase에 연결하지 못했습니다. 새로고침해 주세요.'); $('gErr').textContent = String(e.message || e); });
+(async () => {
+  // 버전 파일은 항상 새로 받고, 그 버전 번호로 apg-fb.js 의 캐시를 갈아 줍니다. 버전 파일을 못 받아도 CRM은 그대로 엽니다.
+  try { ver = await import('./apg-version.js?t=' + Date.now()); renderVersion(); } catch (e) { ver = null; }
+  try { fb = await import('./apg-fb.js?v=' + (ver ? ver.VERSION : Date.now())); await fb.init(); await enter(); }
+  catch (e) { gate('연결하지 못했습니다', 'Firebase에 연결하지 못했습니다. 새로고침해 주세요.'); $('gErr').textContent = String(e.message || e); }
+})();
 </script>
 </body>
 </html>
