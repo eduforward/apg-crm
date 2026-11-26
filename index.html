@@ -152,6 +152,16 @@
   .drawer dt { flex: 0 0 76px; font-size: 13px; font-weight: 700; color: var(--muted); }
   .drawer dd { margin: 0; font-weight: 600; min-width: 0; word-break: break-word; }
   .drawer .act { margin-top: auto; padding: 18px 24px 24px; }
+  /* 유입 경로(UTM): 들어온 곳 배지 + 항목별 한 줄 */
+  .drawer dd.src { flex: 1; }
+  .drawer dl .utm, .drawer dl .utm .r { padding: 0; border: 0; }
+  .drawer dl .utm { display: grid; gap: 8px; }
+  .drawer dl .utm .ch { justify-self: start; margin-top: -2px; padding: 3px 10px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); color: var(--teal-deep); font-size: 12.5px; font-weight: 800; }
+  .drawer dl .utm .r { display: grid; grid-template-columns: 42px 1fr; gap: 10px; align-items: baseline; }
+  .drawer dl .utm .r b { font-size: 12px; font-weight: 700; color: var(--faint); }
+  .drawer dl .utm .r span { font-size: 14px; font-weight: 600; word-break: keep-all; overflow-wrap: anywhere; }
+  .drawer dl .utm .r i { font-style: normal; margin-left: 6px; font-size: 12px; font-weight: 600; color: var(--faint); white-space: nowrap; }
+  .drawer dl .utm .r.id span { font-size: 12.5px; font-weight: 500; color: var(--faint); font-variant-numeric: tabular-nums; }
   .btn {
     display: flex; align-items: center; justify-content: center; height: 50px; border-radius: 999px;
     background: var(--coral); color: var(--white); font-weight: 800; text-decoration: none;
@@ -542,16 +552,47 @@ async function loadHistory(l) {
   if (!list.length && l.statusAt) list = [{ from: '', to: l.status, memo: l.memo, by: l.statusBy, byName: '', at: l.statusAt }];
   hist = list; histNote = note; renderHistory();
 }
-// 유입 경로(UTM): 값이 있는 항목만 "소스 meta · 매체 paid …" 로
-const UTM_LABEL = { source: '소스', medium: '매체', campaign: '캠페인', content: '콘텐츠', term: '키워드' };
-const utmText = u => u ? Object.keys(UTM_LABEL).filter(k => u[k]).map(k => UTM_LABEL[k] + ' ' + u[k]).join(' · ') : '';
+// 유입 경로(UTM): 들어온 곳은 배지로("메타 광고"), 캠페인 · 소재 · 키워드는 한 줄씩.
+//   광고 이름의 밑줄은 띄어 쓰고, 끝의 날짜(_20261125)는 작은 글씨 11/25 로. 원래 값은 마우스를 올리면 보입니다.
+const UTM_SRC = [[/^(meta|facebook|fb|instagram|ig)(_ads)?$/i, '메타'], [/^naver/i, '네이버'], [/^(google|youtube)/i, '구글'], [/^kakao/i, '카카오']];
+const isMetaSrc = s => /^(meta|facebook|fb|instagram|ig)(_ads)?$/i.test(String(s || '').trim());
+function utmChannel(u) {
+  const src = String(u.source || '').trim(), med = String(u.medium || '').trim();
+  const hit = UTM_SRC.find(([re]) => re.test(src)), name = hit ? hit[1] : src;
+  if (!name) return med;
+  if (/(paid|cpc|ppc|display|banner|ads?$)/i.test(med)) return name + ' 광고';
+  return med ? name + ' · ' + med : name;
+}
+function utmName(v) {
+  const t = String(v || '').trim(), m = t.match(/^(.*?)[_\s-]*(20\d{2})(\d{2})(\d{2})$/);
+  let body = (m && m[1] ? m[1] : t).replace(/_+/g, ' ').replace(/\s+/g, ' ').trim();
+  // 끝에 붙은 형식(이미지 · 영상 등)은 날짜와 함께 작은 글씨로
+  const f = body.match(/^(.+?)\s+(이미지|영상|동영상|카드|슬라이드|캐러셀|릴스|image|video|carousel)$/i);
+  if (f) body = f[1];
+  const date = m && m[1] ? +m[3] + '/' + +m[4] : '';
+  return { body: body || t, date: [f ? f[2] : '', date].filter(Boolean).join(' · ') };
+}
+function utmHtml(u) {
+  if (!u || !['source', 'medium', 'campaign', 'content', 'term'].some(k => u[k])) return '';
+  const row = (label, raw) => {
+    const n = utmName(raw);
+    return `<div class="r" title="${esc(raw)}"><b>${label}</b><span>${esc(n.body)}${n.date ? `<i>${esc(n.date)}</i>` : ''}</span></div>`;
+  };
+  const meta = isMetaSrc(u.source), ch = utmChannel(u);
+  return '<div class="utm">'
+    + (ch ? `<span class="ch" title="${esc([u.source, u.medium].filter(Boolean).join(' / '))}">${esc(ch)}</span>` : '')
+    + (u.campaign ? row('캠페인', u.campaign) : '')
+    + (u.content ? row(meta ? '소재' : '콘텐츠', u.content) : '')
+    + (u.term ? (meta && /^\d{6,}$/.test(String(u.term)) ? `<div class="r id" title="메타 광고 세트 ID"><b>세트</b><span>${esc(u.term)}</span></div>` : row('키워드', u.term)) : '')
+    + '</div>';
+}
 function openLead(l) {
   cur = l; busy = false;
   $('dHosp').textContent = l.hosp;
   $('dBody').innerHTML = [
     ['접수일시', `${fmtDate(l.at)} ${fmtTime(l.at)}`], ['성함', l.name], ['연락처', l.tel], ['신청자 구분', l.role],
-    ...(utmText(l.utm) ? [['유입 경로', utmText(l.utm)]] : []),
-  ].map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('');
+  ].map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('')
+    + (utmHtml(l.utm) ? `<div><dt>유입 경로</dt><dd class="src">${utmHtml(l.utm)}</dd></div>` : '');
   $('dCall').href = 'tel:' + l.tel.replace(/\D/g, '');
   $('dMemo').value = ''; dSay(''); renderChange(); loadHistory(l);
   $('dDelBox').hidden = !(meInfo && meInfo.admin); $('dDel').disabled = false;
